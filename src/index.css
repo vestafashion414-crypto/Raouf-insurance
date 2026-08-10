@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ink-950 text-gray-100 antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(199, 154, 46, 0.12), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 100%, rgba(199, 154, 46, 0.06), transparent);
+    background-attachment: fixed;
+  }
+
+  body[dir="rtl"] {
+    font-family: "Cairo", system-ui, sans-serif;
+  }
+
+  body[dir="ltr"] {
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  ::selection {
+    background: rgba(199, 154, 46, 0.3);
+    color: #f7eccf;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0a0b;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #c79a2e, #7a5b19);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #ddb047, #a87e22);
+  }
+}
+
+@layer components {
+  .container-lux {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-12;
+  }
+
+  .gold-text {
+    @apply bg-gradient-to-br from-gold-200 via-gold-400 to-gold-600 bg-clip-text text-transparent;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-gold-300 via-gold-500 to-gold-700 px-7 py-3.5 text-sm font-semibold tracking-wide text-ink-950 shadow-gold transition-all duration-300 hover:shadow-gold-lg hover:brightness-110 active:scale-[0.98];
+  }
+
+  .btn-outline-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-gold-500/50 bg-gold-500/5 px-7 py-3.5 text-sm font-semibold tracking-wide text-gold-200 transition-all duration-300 hover:bg-gold-500/15 hover:border-gold-400 active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-200 transition-all duration-300 hover:border-gold-500/40 hover:text-gold-200 active:scale-[0.98];
+  }
+
+  .card-lux {
+    @apply rounded-2xl border border-gold-500/15 bg-gradient-to-b from-ink-850/90 to-ink-900/90 backdrop-blur-sm;
+  }
+
+  .input-lux {
+    @apply w-full rounded-xl border border-white/10 bg-ink-900/80 px-4 py-3 text-sm text-gray-100 placeholder:text-gray-500 transition-all duration-200 focus:border-gold-500/60 focus:outline-none focus:ring-2 focus:ring-gold-500/20;
+  }
+
+  .select-lux {
+    @apply input-lux appearance-none bg-[length:18px] bg-[right_14px_center] bg-no-repeat pr-11;
+    background-image: url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23C79A2E%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E');
+  }
+
+  body[dir="rtl"] .select-lux {
+    background-position: left 14px center;
+    padding-left: 2.75rem;
+    padding-right: 1rem;
+  }
+
+  .label-lux {
+    @apply mb-2 block text-xs font-semibold uppercase tracking-[0.15em] text-gold-300/80;
+  }
+
+  .chip {
+    @apply cursor-pointer rounded-xl border px-4 py-3 text-center text-sm font-medium transition-all duration-200;
+  }
+
+  .chip-active {
+    @apply border-gold-400 bg-gold-500/15 text-gold-100 shadow-gold;
+  }
+
+  .chip-idle {
+    @apply border-white/10 bg-ink-800/60 text-gray-300 hover:border-gold-500/40 hover:text-gold-200;
+  }
+
+  .section-eyebrow {
+    @apply mb-4 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.3em] text-gold-400;
+  }
+
+  .section-title {
+    @apply font-display text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-[3.25rem];
+  }
+
+  .shimmer-text {
+    background: linear-gradient(
+      90deg,
+      #c79a2e 0%,
+      #f7eccf 25%,
+      #c79a2e 50%,
+      #f7eccf 75%,
+      #c79a2e 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 4s linear infinite;
+  }
+}
+
+@layer utilities {
+  .bg-grid-gold {
+    background-image:
+      linear-gradient(rgba(199, 154, 46, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(199, 154, 46, 0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+}
