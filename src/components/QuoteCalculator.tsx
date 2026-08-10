@@ -15,15 +15,7 @@ import {
 } from "../data";
 import { supabase } from "../lib/supabase";
 import { useLang } from "../lib/LanguageContext";
-import {
-  ShieldCheck,
-  Phone,
-  MessageCircle,
-  Languages,
-  Check,
-  Loader2,
-  PartyPopper,
-} from "lucide-react";
+import { ShieldCheck, Phone, MessageCircle, Languages, Check, Loader as Loader2, PartyPopper } from "lucide-react";
 
 const INSURANCE_TYPES: InsuranceType[] = ["Comprehensive", "Third Party"];
 const VEHICLE_TYPES: { value: VehicleType; img: string }[] = [
