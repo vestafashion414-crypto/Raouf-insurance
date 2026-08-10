@@ -17,21 +17,7 @@ import {
   type VehicleType,
 } from "../data";
 import { useLang } from "../lib/LanguageContext";
-import {
-  ShieldCheck,
-  Phone,
-  Building2,
-  MessageCircle,
-  Languages,
-  Car,
-  UserCircle,
-  Contact as ContactIcon,
-  ChevronRight,
-  ChevronLeft,
-  Check,
-  Sparkles,
-  Info,
-} from "lucide-react";
+import { ShieldCheck, Phone, Building2, MessageCircle, Languages, Car, CircleUser as UserCircle, Contact as ContactIcon, ChevronRight, ChevronLeft, Check, Sparkles, Info } from "lucide-react";
 
 const INSURANCE_TYPES: InsuranceType[] = ["Comprehensive", "Third Party"];
 const VEHICLE_TYPES: { value: VehicleType; img: string }[] = [
