@@ -2,34 +2,40 @@ export type Lang = "en" | "ar";
 export type InsuranceType = "Comprehensive" | "Third Party";
 export type VehicleType = "Sedan" | "SUV" | "Coupe";
 export type EngineCylinders = 4 | 6 | 8;
+export type DriverAge = "25+" | "Under 25";
+export type LicenseYears = "3+" | "Less than 3";
+export type QuoteTier = "base" | "high";
 
 export interface QuoteFormData {
   insuranceType: InsuranceType | "";
   vehicleType: VehicleType | "";
   engineCylinders: EngineCylinders | null;
+  driverAge: DriverAge | "";
+  licenseYears: LicenseYears | "";
   brand: string;
   model: string;
   modelYear: string;
   customerName: string;
-  mobileNumber: string;
+  phone: string;
+  whatsapp: string;
   email: string;
-  notes: string;
 }
 
 export const INITIAL_FORM: QuoteFormData = {
   insuranceType: "",
   vehicleType: "",
   engineCylinders: null,
+  driverAge: "",
+  licenseYears: "",
   brand: "",
   model: "",
   modelYear: "",
   customerName: "",
-  mobileNumber: "",
+  phone: "",
+  whatsapp: "",
   email: "",
-  notes: "",
 };
 
-/* ---------- UAE Brand & Model catalog ---------- */
 export const CAR_BRANDS: Record<string, string[]> = {
   Toyota: ["Camry", "Corolla", "Land Cruiser", "Prado", "Hilux", "Fortuner", "Yaris"],
   Nissan: ["Patrol", "Sunny", "Altima", "X-Trail", "Pathfinder", "Patrol Safari"],
@@ -63,98 +69,150 @@ export const CONTACT = {
   whatsapp: "971568051409",
 };
 
-/* ---------- Pricing table (AED) ---------- */
-// Sedan: 4=650, 6=740, 8=800 | SUV: 4=840, 6=880, 8=920 | Coupe: same as Sedan
-export const PRICING: Record<VehicleType, Record<EngineCylinders, number>> = {
-  Sedan: { 4: 650, 6: 740, 8: 800 },
-  SUV: { 4: 840, 6: 880, 8: 920 },
-  Coupe: { 4: 650, 6: 740, 8: 800 },
+/* ---------- Pricing (AED per year) ---------- */
+// Base tier: age 25+ AND license 3+ years
+const PRICING_BASE: Record<VehicleType, Record<EngineCylinders, number>> = {
+  Sedan: { 4: 650, 6: 730, 8: 810 },
+  SUV: { 4: 850, 6: 900, 8: 940 },
+  Coupe: { 4: 800, 6: 900, 8: 1000 },
 };
 
-export const DISCOUNT_RATE = 0.3; // 30% discount
+// High tier: under 25 OR license less than 3 years
+const PRICING_HIGH: Record<VehicleType, Record<EngineCylinders, number>> = {
+  Sedan: { 4: 1250, 6: 1350, 8: 1500 },
+  SUV: { 4: 1550, 6: 1850, 8: 1950 },
+  Coupe: { 4: 1150, 6: 1350, 8: 1500 },
+};
 
-export function calculatePremium(form: Pick<QuoteFormData, "vehicleType" | "engineCylinders">): { old: number; final: number } | null {
+export function getTier(age: DriverAge | "", lic: LicenseYears | ""): QuoteTier | null {
+  if (!age || !lic) return null;
+  if (age === "Under 25" || lic === "Less than 3") return "high";
+  return "base";
+}
+
+export function calculatePremium(form: Pick<QuoteFormData, "vehicleType" | "engineCylinders" | "driverAge" | "licenseYears">): { amount: number; tier: QuoteTier } | null {
   if (!form.vehicleType || !form.engineCylinders) return null;
-  const old = PRICING[form.vehicleType][form.engineCylinders];
-  if (!old) return null;
-  const final = Math.round(old * (1 - DISCOUNT_RATE));
-  return { old, final };
+  const tier = getTier(form.driverAge, form.licenseYears);
+  if (!tier) return null;
+  const table = tier === "base" ? PRICING_BASE : PRICING_HIGH;
+  const amount = table[form.vehicleType][form.engineCylinders];
+  if (!amount) return null;
+  return { amount, tier };
 }
 
 export const fmtAed = (n: number, lang: Lang) => {
   if (lang === "ar") {
-    return n.toLocaleString("ar-EG", { maximumFractionDigits: 0 }) + " درهم";
+    return n.toLocaleString("ar-EG", { maximumFractionDigits: 0 }) + " د.إ";
   }
   return "AED " + n.toLocaleString("en-AE", { maximumFractionDigits: 0 });
 };
 
-/* ---------- Translations (lean — single screen only) ---------- */
+/* ---------- Translations ---------- */
 export const T: Record<Lang, Record<string, string>> = {
   en: {
     brandName: "RAOUF",
     brandTagline: "Insurance Services",
     heroTitle: "Get Your Quote Now",
+    step1: "Vehicle",
+    step2: "Driver",
+    step3: "Contact",
+    step1Title: "Vehicle Details",
+    step2Title: "Driver & Car",
+    step3Title: "Your Contact",
     insuranceType: "Insurance Type",
     vehicleType: "Vehicle Type",
     engineCylinders: "Cylinders",
     cyl: "Cyl",
     comprehensive: "Comprehensive",
     thirdParty: "Third Party",
+    driverAge: "Driver Age",
+    age25Plus: "25+",
+    ageUnder25: "Under 25",
+    licenseYears: "Driving License",
+    lic3Plus: "More than 3 years",
+    licLess3: "Less than 3 years",
     brand: "Brand",
     model: "Model",
-    modelYear: "Model Year",
+    modelYear: "Year",
     selectBrand: "Select brand",
     selectModel: "Select model",
     chooseBrandFirst: "Choose brand first",
     selectYear: "Select year",
-    getPrice: "Get Price Now",
+    customerName: "Customer Name",
+    fullName: "Full name",
+    phone: "Phone Number",
+    whatsapp: "WhatsApp",
+    email: "Email (optional)",
+    emailPlaceholder: "your@email.com",
+    phonePlaceholder: "05X XXX XXXX",
+    next: "Next",
+    back: "Back",
+    getQuote: "Get Quote",
     estEyebrow: "Estimated Premium",
-    estOff: "30% OFF",
     estPerYear: "/year",
-    estFinalLabel: "per year incl. discount",
-    estCoverage: "Coverage",
-    estVehicle: "Vehicle",
-    estEngine: "Engine",
-    estCar: "Car",
-    estYear: "Year",
-    estEmpty: "Select vehicle type & cylinders to see your price.",
+    estBase: "Best price",
+    estHigh: "Young driver rate",
+    priceNote: "Prices shown are for drivers aged 25+ with a driving license older than 3 years. Other cases are calculated automatically.",
     callNow: "Call",
     whatsappUs: "WhatsApp",
+    selectToSee: "Select vehicle, cylinders & driver details to see your price.",
+    seePrice: "See Your Price",
+    quoteReady: "Your quote is ready!",
+    newQuote: "New Quote",
   },
   ar: {
     brandName: "رؤوف",
     brandTagline: "خدمات التأمين",
     heroTitle: "احصل على عرض سعر الآن",
+    step1: "المركبة",
+    step2: "السائق",
+    step3: "الاتصال",
+    step1Title: "تفاصيل المركبة",
+    step2Title: "السائق والسيارة",
+    step3Title: "بيانات التواصل",
     insuranceType: "نوع التأمين",
     vehicleType: "نوع المركبة",
     engineCylinders: "الأسطوانات",
     cyl: "سل",
     comprehensive: "شامل",
     thirdParty: "ضد الغير",
+    driverAge: "عمر السائق",
+    age25Plus: "+25",
+    ageUnder25: "أقل من 25",
+    licenseYears: "رخصة القيادة",
+    lic3Plus: "أكثر من 3 سنوات",
+    licLess3: "أقل من 3 سنوات",
     brand: "العلامة",
     model: "الموديل",
-    modelYear: "سنة الصنع",
+    modelYear: "السنة",
     selectBrand: "اختر العلامة",
     selectModel: "اختر الموديل",
     chooseBrandFirst: "اختر العلامة أولاً",
     selectYear: "اختر السنة",
-    getPrice: "احصل على السعر الآن",
+    customerName: "اسم العميل",
+    fullName: "الاسم الكامل",
+    phone: "رقم الهاتف",
+    whatsapp: "واتساب",
+    email: "البريد (اختياري)",
+    emailPlaceholder: "your@email.com",
+    phonePlaceholder: "05X XXX XXXX",
+    next: "التالي",
+    back: "السابق",
+    getQuote: "احصل على عرض السعر",
     estEyebrow: "القسط المقدر",
-    estOff: "خصم 30%",
     estPerYear: "/سنوياً",
-    estFinalLabel: "سنوياً شامل الخصم",
-    estCoverage: "التغطية",
-    estVehicle: "المركبة",
-    estEngine: "المحرك",
-    estCar: "السيارة",
-    estYear: "السنة",
-    estEmpty: "اختر نوع المركبة والأسطوانات لرؤية السعر.",
+    estBase: "أفضل سعر",
+    estHigh: "سعر سائق شاب",
+    priceNote: "الأسعار المعروضة للسائقين فوق 25 عاماً برخصة قيادة أقدم من 3 سنوات. الحالات الأخرى تُحسب تلقائياً.",
     callNow: "اتصل",
     whatsappUs: "واتساب",
+    selectToSee: "اختر نوع المركبة والأسطوانات وبيانات السائق لرؤية السعر.",
+    seePrice: "شاهد سعرك",
+    quoteReady: "عرض السعر جاهز!",
+    newQuote: "عرض جديد",
   },
 };
 
-// Arabic names for vehicle types
 export const VEHICLE_TYPE_AR: Record<VehicleType, string> = {
   Sedan: "سيدان",
   SUV: "دفع رباعي",

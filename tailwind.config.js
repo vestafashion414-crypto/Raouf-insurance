@@ -61,6 +61,14 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-10px)" },
         },
+        "slide-in-right": {
+          "0%": { opacity: "0", transform: "translateX(40px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        "slide-in-left": {
+          "0%": { opacity: "0", transform: "translateX(-40px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.7s ease-out both",
@@ -69,6 +77,8 @@ export default {
         shimmer: "shimmer 3s linear infinite",
         "pulse-gold": "pulse-gold 2s ease-in-out infinite",
         float: "float 4s ease-in-out infinite",
+        "slide-in-right": "slide-in-right 0.35s ease-out both",
+        "slide-in-left": "slide-in-left 0.35s ease-out both",
       },
     },
   },
