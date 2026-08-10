@@ -15,19 +15,7 @@ import {
 } from "../data";
 import { supabase } from "../lib/supabase";
 import { useLang } from "../lib/LanguageContext";
-import {
-  ShieldCheck,
-  Car,
-  User,
-  Check,
-  ChevronRight,
-  ChevronLeft,
-  Phone,
-  MessageCircle,
-  Loader2,
-  PartyPopper,
-  AlertCircle,
-} from "lucide-react";
+import { ShieldCheck, Car, User, Check, ChevronRight, ChevronLeft, Phone, MessageCircle, Loader as Loader2, PartyPopper, CircleAlert as AlertCircle } from "lucide-react";
 
 type Step = 1 | 2 | 3;
 
