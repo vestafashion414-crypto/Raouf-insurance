@@ -11,10 +11,10 @@ import {
   type DriverAge,
   type EngineCylinders,
   type InsuranceType,
+  type Lang,
   type LicenseYears,
   type QuoteFormData,
   type VehicleType,
-  type Lang,
 } from "../data";
 import { useLang } from "../lib/LanguageContext";
 import {
@@ -58,8 +58,8 @@ export default function QuoteCalculator() {
   const insLabel = (v: InsuranceType) => (lang === "ar" ? INSURANCE_TYPE_AR[v] : v);
   const vehLabel = (v: VehicleType) => (lang === "ar" ? VEHICLE_TYPE_AR[v] : v);
 
-  const step1Valid = !!(form.insuranceType && form.vehicleType && form.engineCylinders);
-  const step2Valid = !!(form.driverAge && form.licenseYears && form.brand && form.model && form.modelYear);
+  const step1Valid = !!(form.insuranceType && form.vehicleType && form.engineCylinders && form.driverAge && form.licenseYears);
+  const step2Valid = !!(form.brand && form.model && form.modelYear);
   const step3Valid = !!(form.customerName && form.phone);
 
   const goNext = () => {
@@ -143,8 +143,8 @@ export default function QuoteCalculator() {
             {step === 3 && <Step3 form={form} set={set} />}
           </div>
 
-          {/* Price display (always visible) */}
-          <PriceBar estimate={estimate} />
+          {/* Price card — always visible, updates instantly */}
+          <PriceCard estimate={estimate} />
 
           {/* Navigation */}
           <div className="mt-4 flex gap-3">
@@ -200,15 +200,14 @@ export default function QuoteCalculator() {
 
   function whatsappMsg(f: QuoteFormData, est: { amount: number; tier: string } | null, l: Lang): string {
     if (!est) return "";
-    const L = l === "ar" ? "ar" : "en";
-    if (L === "ar") {
+    if (l === "ar") {
       return `طلب عرض سعر تأمين:\nالنوع: ${f.insuranceType}\nالمركبة: ${f.brand} ${f.model} ${f.modelYear}\nالأسطوانات: ${f.engineCylinders}\nالسائق: ${f.driverAge}\nالرخصة: ${f.licenseYears}\nالقسط: ${fmtAed(est.amount, "ar")}/سنة\nالاسم: ${f.customerName}\nالهاتف: ${f.phone}`;
     }
     return `Insurance Quote Request:\nType: ${f.insuranceType}\nVehicle: ${f.brand} ${f.model} ${f.modelYear}\nCylinders: ${f.engineCylinders}\nDriver: ${f.driverAge}\nLicense: ${f.licenseYears}\nPremium: ${fmtAed(est.amount, "en")}/year\nName: ${f.customerName}\nPhone: ${f.phone}`;
   }
 }
 
-/* ---------- Step 1: Vehicle ---------- */
+/* ---------- Step 1: Vehicle + Driver (all pricing factors) ---------- */
 function Step1({
   form,
   set,
@@ -270,29 +269,6 @@ function Step1({
           ))}
         </div>
       </Field>
-    </div>
-  );
-}
-
-/* ---------- Step 2: Driver & Car ---------- */
-function Step2({
-  form,
-  set,
-  brands,
-  models,
-}: {
-  form: QuoteFormData;
-  set: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
-  brands: string[];
-  models: string[];
-}) {
-  const { t } = useLang();
-  return (
-    <div className="space-y-5">
-      <div className="mb-1 flex items-center gap-2">
-        <UserCircle className="h-5 w-5 text-gold-400" />
-        <h2 className="font-display text-lg font-semibold text-gold-100">{t("step2Title")}</h2>
-      </div>
 
       <Field label={t("driverAge")}>
         <div className="grid grid-cols-2 gap-2.5">
@@ -313,6 +289,29 @@ function Step2({
           ))}
         </div>
       </Field>
+    </div>
+  );
+}
+
+/* ---------- Step 2: Car details ---------- */
+function Step2({
+  form,
+  set,
+  brands,
+  models,
+}: {
+  form: QuoteFormData;
+  set: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
+  brands: string[];
+  models: string[];
+}) {
+  const { t } = useLang();
+  return (
+    <div className="space-y-5">
+      <div className="mb-1 flex items-center gap-2">
+        <UserCircle className="h-5 w-5 text-gold-400" />
+        <h2 className="font-display text-lg font-semibold text-gold-100">{t("step2Title")}</h2>
+      </div>
 
       <Field label={t("brand")}>
         <select className="select-lux" value={form.brand} onChange={(e) => { set("brand", e.target.value); set("model", ""); }}>
@@ -374,32 +373,33 @@ function Step3({
   );
 }
 
-/* ---------- Price bar (always visible) ---------- */
-function PriceBar({ estimate }: { estimate: { amount: number; tier: string } | null }) {
+/* ---------- Price card (always visible, large gold card) ---------- */
+function PriceCard({ estimate }: { estimate: { amount: number; tier: string } | null }) {
   const { t, lang } = useLang();
 
   if (!estimate) {
     return (
-      <div className="mt-4 rounded-xl border border-gold-500/15 bg-ink-900/60 p-4 text-center">
+      <div className="mt-5 rounded-2xl border border-gold-500/15 bg-ink-900/60 p-5 text-center">
+        <Sparkles className="mx-auto mb-2 h-5 w-5 text-gold-500/40" />
         <p className="text-sm text-gray-500">{t("selectToSee")}</p>
       </div>
     );
   }
 
   return (
-    <div className="mt-4 animate-scale-in rounded-xl border border-gold-500/30 bg-gradient-to-b from-ink-850 to-ink-900 p-4 shadow-gold">
+    <div className="mt-5 animate-scale-in rounded-2xl border border-gold-500/40 bg-gradient-to-br from-gold-500/15 via-ink-850 to-ink-900 p-5 shadow-gold-lg">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-gold-400" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-gold-400">{t("estEyebrow")}</span>
+          <Sparkles className="h-5 w-5 text-gold-400" />
+          <span className="text-sm font-semibold uppercase tracking-wider text-gold-300">{t("estEyebrow")}</span>
         </div>
-        <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${estimate.tier === "base" ? "bg-gold-500/20 text-gold-200" : "bg-orange-500/20 text-orange-300"}`}>
+        <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${estimate.tier === "base" ? "bg-gold-500/25 text-gold-200" : "bg-orange-500/20 text-orange-300"}`}>
           {estimate.tier === "base" ? t("estBase") : t("estHigh")}
         </span>
       </div>
-      <div className="mt-2 flex items-baseline gap-2">
-        <span className="font-display text-4xl font-bold gold-text leading-none">{fmtAed(estimate.amount, lang)}</span>
-        <span className="text-xs text-gray-500">{t("estPerYear")}</span>
+      <div className="mt-3 flex items-baseline gap-2">
+        <span className="font-display text-5xl font-bold gold-text leading-none">{fmtAed(estimate.amount, lang)}</span>
+        <span className="text-sm text-gray-400">{t("estPerYear")}</span>
       </div>
     </div>
   );
