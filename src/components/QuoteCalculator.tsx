@@ -20,6 +20,7 @@ import { useLang } from "../lib/LanguageContext";
 import {
   ShieldCheck,
   Phone,
+  Building2,
   MessageCircle,
   Languages,
   Car,
@@ -193,6 +194,15 @@ export default function QuoteCalculator() {
             <MessageCircle className="h-4 w-4" />
             {t("whatsappUs")}
           </a>
+        </div>
+
+        {/* About Us */}
+        <div className="mt-4 rounded-2xl border border-gold-500/15 bg-ink-900/60 p-5 text-center">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl border border-gold-500/30 bg-gradient-to-br from-ink-800 to-ink-900">
+            <Building2 className="h-5 w-5 text-gold-400" />
+          </div>
+          <h3 className="font-display text-lg font-semibold text-gold-100">{t("aboutTitle")}</h3>
+          <p className="mt-2 text-xs leading-relaxed text-gray-400">{t("aboutText")}</p>
         </div>
       </div>
     </section>
