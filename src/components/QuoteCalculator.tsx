@@ -196,10 +196,40 @@ export default function QuoteCalculator() {
 
   function whatsappMsg(f: QuoteFormData, est: { amount: number; tier: string } | null, l: Lang): string {
     if (!est) return "";
+    const age = f.driverAge === "25+" ? (l === "ar" ? "25 سنة فما فوق" : "25 years and above") : (l === "ar" ? "أقل من 25 سنة" : "Under 25 years");
+    const lic = f.licenseYears === "3+" ? (l === "ar" ? "3 سنوات أو أكثر" : "3 years or more") : (l === "ar" ? "أقل من 3 سنوات" : "Less than 3 years");
+    const vtype = l === "ar" ? VEHICLE_TYPE_AR[f.vehicleType as VehicleType] : f.vehicleType;
+    const itype = l === "ar" ? INSURANCE_TYPE_AR[f.insuranceType as InsuranceType] : f.insuranceType;
     if (l === "ar") {
-      return `طلب عرض سعر تأمين:\nالنوع: ${f.insuranceType}\nالمركبة: ${f.brand} ${f.model} ${f.modelYear}\nالأسطوانات: ${f.engineCylinders}\nالسائق: ${f.driverAge}\nالرخصة: ${f.licenseYears}\nالقسط: ${fmtAed(est.amount, "ar")}/سنة\nالاسم: ${f.customerName}\nالهاتف: ${f.phone}`;
+      return [
+        "طلب عرض سعر تأمين:",
+        `الاسم: ${f.customerName || "-"}`,
+        `الهاتف: ${f.phone || "-"}`,
+        `نوع التأمين: ${itype || "-"}`,
+        `نوع المركبة: ${vtype || "-"}`,
+        `الأسطوانات: ${f.engineCylinders ?? "-"}`,
+        `عمر السائق: ${age}`,
+        `رخصة القيادة: ${lic}`,
+        `العلامة: ${f.brand || "-"}`,
+        `الموديل: ${f.model || "-"}`,
+        `سنة الموديل: ${f.modelYear || "-"}`,
+        `القسط المقدر: ${fmtAed(est.amount, "ar")} / سنوياً`,
+      ].join("\n");
     }
-    return `Insurance Quote Request:\nType: ${f.insuranceType}\nVehicle: ${f.brand} ${f.model} ${f.modelYear}\nCylinders: ${f.engineCylinders}\nDriver: ${f.driverAge}\nLicense: ${f.licenseYears}\nPremium: ${fmtAed(est.amount, "en")}/year\nName: ${f.customerName}\nPhone: ${f.phone}`;
+    return [
+      "Insurance Quote Request:",
+      `Name: ${f.customerName || "-"}`,
+      `Phone: ${f.phone || "-"}`,
+      `Insurance Type: ${itype || "-"}`,
+      `Vehicle Type: ${vtype || "-"}`,
+      `Cylinders: ${f.engineCylinders ?? "-"}`,
+      `Driver Age: ${age}`,
+      `Driving License: ${lic}`,
+      `Vehicle Brand: ${f.brand || "-"}`,
+      `Vehicle Model: ${f.model || "-"}`,
+      `Model Year: ${f.modelYear || "-"}`,
+      `Estimated Premium: ${fmtAed(est.amount, "en")} / year`,
+    ].join("\n");
   }
 }
 
