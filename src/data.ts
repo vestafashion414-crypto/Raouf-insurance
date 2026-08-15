@@ -4,12 +4,14 @@ export type VehicleType = "Sedan" | "SUV" | "Coupe";
 export type EngineCylinders = 4 | 6 | 8;
 export type DriverAge = "25+" | "under_25";
 export type LicenseYears = "3+" | "less_3";
+export type CarValueRange = "upto_60k" | "60k_100k" | "over_100k";
 
 export interface QuoteFormData {
   insuranceType: InsuranceType | "";
   vehicleType: VehicleType | "";
   engineCylinders: EngineCylinders | null;
   carValue: string;
+  carValueRange: CarValueRange | "";
   driverAge: DriverAge | "";
   licenseYears: LicenseYears | "";
   brand: string;
@@ -22,6 +24,7 @@ export const INITIAL_FORM: QuoteFormData = {
   vehicleType: "",
   engineCylinders: null,
   carValue: "",
+  carValueRange: "",
   driverAge: "",
   licenseYears: "",
   brand: "",
@@ -64,20 +67,27 @@ export const CONTACT = {
 
 /* ---------- Pricing (AED per year) ---------- */
 
-// Third Party pricing table: base by vehicle type + cylinders (age/license don't affect third party much)
-const PRICING_TP: Record<VehicleType, Record<EngineCylinders, number>> = {
+// Third Party: age 25+ AND license 3+ years (base rates)
+const PRICING_TP_BASE: Record<VehicleType, Record<EngineCylinders, number>> = {
   Sedan: { 4: 650, 6: 730, 8: 810 },
   SUV: { 4: 850, 6: 900, 8: 940 },
   Coupe: { 4: 800, 6: 900, 8: 1000 },
 };
 
-// Comprehensive: rate per 1000 AED of car value, with surcharge multipliers for young driver / short license
-const COMP_RATE_PER_THOUSAND = 3.5; // base rate
-const YOUNG_DRIVER_MULTIPLIER = 1.6;
-const SHORT_LICENSE_MULTIPLIER = 1.4;
+// Third Party: driver under 25 OR license less than 3 years (surcharge rates)
+const PRICING_TP_SURCHARGE: Record<VehicleType, Record<EngineCylinders, number>> = {
+  Sedan: { 4: 1250, 6: 1350, 8: 1500 },
+  SUV: { 4: 1550, 6: 1850, 8: 1950 },
+  Coupe: { 4: 1150, 6: 1350, 8: 1500 },
+};
 
-// If comprehensive car value exceeds this, show WhatsApp contact instead of a price
-export const COMP_VALUE_THRESHOLD = 500000;
+// Comprehensive: fixed prices by vehicle type + value range
+// null = no fixed price, needs WhatsApp contact
+const PRICING_COMP: Record<VehicleType, Partial<Record<CarValueRange, number | null>>> = {
+  Sedan: { upto_60k: 1350, "60k_100k": 1400, over_100k: null },
+  SUV: { upto_60k: 1750, "60k_100k": null, over_100k: null },
+  Coupe: { upto_60k: null, "60k_100k": null, over_100k: null },
+};
 
 export interface PriceResult {
   amount: number;
@@ -87,31 +97,23 @@ export interface PriceResult {
 
 export function calculatePremium(form: QuoteFormData): PriceResult | null {
   if (!form.vehicleType || !form.engineCylinders) return null;
+  if (!form.driverAge || !form.licenseYears) return null;
 
   if (form.insuranceType === "third_party") {
-    const amount = PRICING_TP[form.vehicleType][form.engineCylinders];
+    const isBase = form.driverAge === "25+" && form.licenseYears === "3+";
+    const table = isBase ? PRICING_TP_BASE : PRICING_TP_SURCHARGE;
+    const amount = table[form.vehicleType][form.engineCylinders];
     if (!amount) return null;
     return { amount, isComprehensive: false, needsContact: false };
   }
 
   if (form.insuranceType === "comprehensive") {
-    if (!form.driverAge || !form.licenseYears) return null;
-    const carValue = parseFloat(form.carValue);
-    if (!carValue || carValue <= 0) return null;
-
-    if (carValue > COMP_VALUE_THRESHOLD) {
+    if (!form.carValueRange) return null;
+    const price = PRICING_COMP[form.vehicleType][form.carValueRange];
+    if (price === null || price === undefined) {
       return { amount: 0, isComprehensive: true, needsContact: true };
     }
-
-    let premium = (carValue / 1000) * COMP_RATE_PER_THOUSAND;
-    if (form.driverAge === "under_25") premium *= YOUNG_DRIVER_MULTIPLIER;
-    if (form.licenseYears === "less_3") premium *= SHORT_LICENSE_MULTIPLIER;
-
-    // Apply vehicle type factor
-    const typeFactor: Record<VehicleType, number> = { Sedan: 1, SUV: 1.15, Coupe: 1.3 };
-    premium *= typeFactor[form.vehicleType];
-
-    return { amount: Math.round(premium), isComprehensive: true, needsContact: false };
+    return { amount: price, isComprehensive: true, needsContact: false };
   }
 
   return null;
@@ -140,6 +142,10 @@ export const T: Record<Lang, Record<string, string>> = {
     engineCylinders: "عدد السلندرات",
     carValue: "قيمة السيارة (للشامل فقط)",
     carValuePlaceholder: "مثال: 120000",
+    carValueRange: "قيمة السيارة",
+    upto60k: "حتى 60,000 درهم",
+    "60kTo100k": "60,001 - 100,000 درهم",
+    over100k: "أكثر من 100,000 درهم",
     driverAge: "العمر",
     age25Plus: "25 سنة فما فوق",
     ageUnder25: "أقل من 25 سنة",
@@ -209,6 +215,10 @@ export const T: Record<Lang, Record<string, string>> = {
     engineCylinders: "Number of Cylinders",
     carValue: "Car Value (comprehensive only)",
     carValuePlaceholder: "e.g. 120,000",
+    carValueRange: "Vehicle Value",
+    upto60k: "Up to AED 60,000",
+    "60kTo100k": "AED 60,001 – 100,000",
+    over100k: "More than AED 100,000",
     driverAge: "Driver Age",
     age25Plus: "25 years and above",
     ageUnder25: "Under 25 years",

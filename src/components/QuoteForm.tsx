@@ -1,9 +1,12 @@
 import { useState } from "react";
 import {
   CAR_BRANDS,
+  CONTACT,
   INITIAL_FORM,
   YEARS,
   calculatePremium,
+  fmtAed,
+  type CarValueRange,
   type DriverAge,
   type EngineCylinders,
   type InsuranceType,
@@ -17,6 +20,7 @@ import {
   ShieldCheck,
   Languages,
   Sparkles,
+  MessageCircle,
 } from "lucide-react";
 
 const INSURANCE_TYPES: { value: InsuranceType; key: string }[] = [
@@ -27,13 +31,18 @@ const VEHICLE_TYPES: VehicleType[] = ["Sedan", "SUV", "Coupe"];
 const ENGINE_OPTIONS: EngineCylinders[] = [4, 6, 8];
 const AGE_OPTIONS: DriverAge[] = ["25+", "under_25"];
 const LICENSE_OPTIONS: LicenseYears[] = ["3+", "less_3"];
+const CAR_VALUE_RANGES: { value: CarValueRange; key: string }[] = [
+  { value: "upto_60k", key: "upto60k" },
+  { value: "60k_100k", key: "60kTo100k" },
+  { value: "over_100k", key: "over100k" },
+];
 
 interface Props {
   onPriceCalculated: (form: QuoteFormData, result: PriceResult) => void;
 }
 
 export default function QuoteForm({ onPriceCalculated }: Props) {
-  const { t, toggle } = useLang();
+  const { t, lang, toggle } = useLang();
   const [form, setForm] = useState<QuoteFormData>(INITIAL_FORM);
   const [error, setError] = useState("");
 
@@ -44,6 +53,8 @@ export default function QuoteForm({ onPriceCalculated }: Props) {
   const set = <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const instantPrice = calculatePremium(form);
+
   const formValid =
     form.insuranceType &&
     form.vehicleType &&
@@ -53,7 +64,7 @@ export default function QuoteForm({ onPriceCalculated }: Props) {
     form.brand &&
     form.model &&
     form.modelYear &&
-    (!isComprehensive || (form.carValue && parseFloat(form.carValue) > 0));
+    (!isComprehensive || form.carValueRange);
 
   const handleSubmit = () => {
     if (!formValid) {
@@ -151,18 +162,20 @@ export default function QuoteForm({ onPriceCalculated }: Props) {
                 </div>
               </Field>
 
-              {/* 4. Car value (comprehensive only) */}
+              {/* 4. Car value range (comprehensive only) */}
               {isComprehensive && (
-                <Field label={t("carValue")}>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    className="input-lux"
-                    placeholder={t("carValuePlaceholder")}
-                    value={form.carValue}
-                    onChange={(e) => set("carValue", e.target.value)}
-                    min="0"
-                  />
+                <Field label={t("carValueRange")}>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    {CAR_VALUE_RANGES.map((r) => (
+                      <button
+                        key={r.value}
+                        onClick={() => set("carValueRange", r.value)}
+                        className={`chip ${form.carValueRange === r.value ? "chip-active" : "chip-idle"}`}
+                      >
+                        {t(r.key)}
+                      </button>
+                    ))}
+                  </div>
                 </Field>
               )}
 
@@ -247,6 +260,31 @@ export default function QuoteForm({ onPriceCalculated }: Props) {
                 <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-sm text-red-300">
                   {error}
                 </p>
+              )}
+
+              {/* Instant price display */}
+              {instantPrice && (
+                <div className="rounded-xl border border-gold-500/30 bg-gold-500/10 p-4 text-center animate-scale-in">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gold-300">
+                    {t("yourPrice")}
+                  </p>
+                  {instantPrice.needsContact ? (
+                    <a
+                      href={`https://wa.me/${CONTACT.whatsapp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-3 text-base font-bold text-white shadow-lg transition-all hover:bg-green-500 active:scale-[0.98]"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                      {t("contactForPrice")}
+                    </a>
+                  ) : (
+                    <p className="mt-1 font-display text-3xl font-bold gold-text">
+                      {fmtAed(instantPrice.amount, lang)}
+                      <span className="ms-1 text-sm text-gray-400">{t("perYear")}</span>
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* Submit button */}
