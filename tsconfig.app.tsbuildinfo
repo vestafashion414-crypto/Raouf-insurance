@@ -1,1 +1,1 @@
-{"root":["./src/App.tsx","./src/data.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/QuoteCalculator.tsx","./src/lib/LanguageContext.tsx","./src/lib/supabase.ts"],"version":"5.9.3"}
+{"root":["./src/App.tsx","./src/data.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/AboutSection.tsx","./src/components/BottomBar.tsx","./src/components/DocumentUpload.tsx","./src/components/QuoteForm.tsx","./src/lib/LanguageContext.tsx","./src/lib/supabase.ts"],"version":"5.9.3"}

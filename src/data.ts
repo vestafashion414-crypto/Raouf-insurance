@@ -1,39 +1,32 @@
-export type Lang = "en" | "ar";
-export type InsuranceType = "Comprehensive" | "Third Party";
+export type Lang = "ar" | "en";
+export type InsuranceType = "comprehensive" | "third_party";
 export type VehicleType = "Sedan" | "SUV" | "Coupe";
 export type EngineCylinders = 4 | 6 | 8;
-export type DriverAge = "25+" | "Under 25";
-export type LicenseYears = "3+" | "Less than 3";
-export type QuoteTier = "base" | "high";
+export type DriverAge = "25+" | "under_25";
+export type LicenseYears = "3+" | "less_3";
 
 export interface QuoteFormData {
   insuranceType: InsuranceType | "";
   vehicleType: VehicleType | "";
   engineCylinders: EngineCylinders | null;
+  carValue: string;
   driverAge: DriverAge | "";
   licenseYears: LicenseYears | "";
   brand: string;
   model: string;
   modelYear: string;
-  customerName: string;
-  phone: string;
-  whatsapp: string;
-  email: string;
 }
 
 export const INITIAL_FORM: QuoteFormData = {
   insuranceType: "",
   vehicleType: "",
   engineCylinders: null,
+  carValue: "",
   driverAge: "",
   licenseYears: "",
   brand: "",
   model: "",
   modelYear: "",
-  customerName: "",
-  phone: "",
-  whatsapp: "",
-  email: "",
 };
 
 export const CAR_BRANDS: Record<string, string[]> = {
@@ -47,7 +40,6 @@ export const CAR_BRANDS: Record<string, string[]> = {
   Kia: ["Sportage", "Sorento", "K5", "Picanto", "Telluride", "Cerato"],
   BYD: ["Han", "Tang", "Atto 3", "Seal", "Dolphin", "Song"],
   Jetour: ["Dashing", "X70", "X90", "T2", "T5"],
-  ROX: ["ROX 01", "ROX 02", "ROX 03"],
   Mitsubishi: ["Pajero", "Lancer", "Outlander", "ASX", "L200"],
   Honda: ["Accord", "Civic", "CR-V", "Pilot"],
   "Range Rover": ["Vogue", "Sport", "Evoque", "Velar", "Defender"],
@@ -67,37 +59,62 @@ export const CONTACT = {
   phone: "0568051409",
   phoneIntl: "+971568051409",
   whatsapp: "971568051409",
+  email: "raoofbanna0@gmail.com",
 };
 
 /* ---------- Pricing (AED per year) ---------- */
-// Base tier: age 25+ AND license 3+ years
-const PRICING_BASE: Record<VehicleType, Record<EngineCylinders, number>> = {
+
+// Third Party pricing table: base by vehicle type + cylinders (age/license don't affect third party much)
+const PRICING_TP: Record<VehicleType, Record<EngineCylinders, number>> = {
   Sedan: { 4: 650, 6: 730, 8: 810 },
   SUV: { 4: 850, 6: 900, 8: 940 },
   Coupe: { 4: 800, 6: 900, 8: 1000 },
 };
 
-// High tier: under 25 OR license less than 3 years
-const PRICING_HIGH: Record<VehicleType, Record<EngineCylinders, number>> = {
-  Sedan: { 4: 1250, 6: 1350, 8: 1500 },
-  SUV: { 4: 1550, 6: 1850, 8: 1950 },
-  Coupe: { 4: 1150, 6: 1350, 8: 1500 },
-};
+// Comprehensive: rate per 1000 AED of car value, with surcharge multipliers for young driver / short license
+const COMP_RATE_PER_THOUSAND = 3.5; // base rate
+const YOUNG_DRIVER_MULTIPLIER = 1.6;
+const SHORT_LICENSE_MULTIPLIER = 1.4;
 
-export function getTier(age: DriverAge | "", lic: LicenseYears | ""): QuoteTier | null {
-  if (!age || !lic) return null;
-  if (age === "Under 25" || lic === "Less than 3") return "high";
-  return "base";
+// If comprehensive car value exceeds this, show WhatsApp contact instead of a price
+export const COMP_VALUE_THRESHOLD = 500000;
+
+export interface PriceResult {
+  amount: number;
+  isComprehensive: boolean;
+  needsContact: boolean;
 }
 
-export function calculatePremium(form: Pick<QuoteFormData, "vehicleType" | "engineCylinders" | "driverAge" | "licenseYears">): { amount: number; tier: QuoteTier } | null {
+export function calculatePremium(form: QuoteFormData): PriceResult | null {
   if (!form.vehicleType || !form.engineCylinders) return null;
-  const tier = getTier(form.driverAge, form.licenseYears);
-  if (!tier) return null;
-  const table = tier === "base" ? PRICING_BASE : PRICING_HIGH;
-  const amount = table[form.vehicleType][form.engineCylinders];
-  if (!amount) return null;
-  return { amount, tier };
+
+  if (form.insuranceType === "third_party") {
+    const amount = PRICING_TP[form.vehicleType][form.engineCylinders];
+    if (!amount) return null;
+    return { amount, isComprehensive: false, needsContact: false };
+  }
+
+  if (form.insuranceType === "comprehensive") {
+    if (!form.driverAge || !form.licenseYears) return null;
+    const carValue = parseFloat(form.carValue);
+    if (!carValue || carValue <= 0) return null;
+
+    if (carValue > COMP_VALUE_THRESHOLD) {
+      return { amount: 0, isComprehensive: true, needsContact: true };
+    }
+
+    let premium = (carValue / 1000) * COMP_RATE_PER_THOUSAND;
+    if (form.driverAge === "under_25") premium *= YOUNG_DRIVER_MULTIPLIER;
+    if (form.licenseYears === "less_3") premium *= SHORT_LICENSE_MULTIPLIER;
+
+    // Apply vehicle type factor
+    const typeFactor: Record<VehicleType, number> = { Sedan: 1, SUV: 1.15, Coupe: 1.3 };
+    premium *= typeFactor[form.vehicleType];
+
+    return { amount: Math.round(premium), isComprehensive: true, needsContact: false };
+  }
+
+  return null;
 }
 
 export const fmtAed = (n: number, lang: Lang) => {
@@ -109,121 +126,138 @@ export const fmtAed = (n: number, lang: Lang) => {
 
 /* ---------- Translations ---------- */
 export const T: Record<Lang, Record<string, string>> = {
+  ar: {
+    brandName: "RAOUF",
+    brandTagline: "INSURANCE SERVICES",
+    heroTitle: "احصل على عرض سعر تأمين خلال دقائق",
+    heroSubtitle: "عروض من جميع شركات التأمين بأسعار تنافسية",
+    langToggle: "English",
+    formTitle: "طلب عرض سعر",
+    insuranceType: "نوع التأمين",
+    comprehensive: "شامل",
+    thirdParty: "ضد الغير",
+    vehicleType: "نوع السيارة",
+    engineCylinders: "عدد السلندرات",
+    carValue: "قيمة السيارة (للشامل فقط)",
+    carValuePlaceholder: "مثال: 120000",
+    driverAge: "العمر",
+    age25Plus: "25 سنة فما فوق",
+    ageUnder25: "أقل من 25 سنة",
+    licenseYears: "مدة الرخصة",
+    lic3Plus: "3 سنوات أو أكثر",
+    licLess3: "أقل من 3 سنوات",
+    brand: "الماركة",
+    selectBrand: "اختر الماركة",
+    model: "الموديل",
+    selectModel: "اختر الموديل",
+    chooseBrandFirst: "اختر الماركة أولاً",
+    modelYear: "سنة الصنع",
+    selectYear: "اختر السنة",
+    getPrice: "احصل على السعر",
+    yourPrice: "سعرك التقديري",
+    perYear: "/ سنوياً",
+    contactForPrice: "يرجى التواصل معنا عبر واتساب للحصول على أفضل عرض",
+    whatsappUs: "تواصل عبر واتساب",
+    enterVehicleValue: "أدخل قيمة السيارة لحساب السعر",
+    selectAllFields: "يرجى تعبئة جميع الحقول المطلوبة",
+    cylinders: "سلندر",
+    /* Document upload page */
+    docsTitle: "رفع المستندات",
+    docsSubtitle: "لإتمام طلبك، يرجى رفع المستندات التالية",
+    drivingLicense: "رخصة القيادة",
+    emiratesId: "الهوية الإماراتية",
+    carOwnership: "ملكية السيارة",
+    uploadFile: "اضغط لرفع الملف",
+    fileUploaded: "تم رفع الملف",
+    changeFile: "تغيير",
+    fullName: "الاسم الكامل",
+    fullNamePlaceholder: "الاسم الكامل",
+    phoneNumber: "رقم الهاتف",
+    phonePlaceholder: "05X XXX XXXX",
+    email: "البريد الإلكتروني",
+    emailPlaceholder: "your@email.com",
+    submitRequest: "إرسال الطلب",
+    submitting: "جاري الإرسال...",
+    submitSuccess: "تم إرسال طلبك بنجاح! سنتواصل معك قريبًا.",
+    submitError: "حدث خطأ. يرجى المحاولة مرة أخرى أو التواصل عبر واتساب.",
+    backToForm: "العودة للنموذج",
+    requiredDocs: "المستندات المطلوبة (3)",
+    contactInfo: "بيانات التواصل",
+    newQuote: "طلب جديد",
+    /* About section */
+    aboutTitle: "من نحن",
+    aboutText: "RAOUF INSURANCE SERVICES هو وسيط تأمين معتمد في الإمارات، نوفر عروضًا من جميع شركات التأمين بأسعار تنافسية، ونساعد العميل في اختيار أفضل تغطية بأسرع وقت.",
+    /* Bottom bar */
+    callNow: "اتصال",
+    whatsappBottom: "واتساب",
+    getQuoteBottom: "احصل على السعر",
+    /* Footer */
+    rightsReserved: "جميع الحقوق محفوظة",
+    fileTooBig: "حجم الملف كبير جدًا (الحد الأقصى 5 ميجابايت)",
+  },
   en: {
     brandName: "RAOUF",
-    brandTagline: "Insurance Services",
-    heroTitle: "Get Your Quote Now",
-    step1: "Vehicle",
-    step2: "Driver",
-    step3: "Contact",
-    step1Title: "Vehicle Details",
-    step2Title: "Car Details",
-    step3Title: "Your Contact",
+    brandTagline: "INSURANCE SERVICES",
+    heroTitle: "Get an insurance quote in minutes",
+    heroSubtitle: "Competitive offers from all insurance companies",
+    langToggle: "العربية",
+    formTitle: "Request a Quote",
     insuranceType: "Insurance Type",
-    vehicleType: "Vehicle Type",
-    engineCylinders: "Cylinders",
-    cyl: "Cyl",
     comprehensive: "Comprehensive",
     thirdParty: "Third Party",
+    vehicleType: "Vehicle Type",
+    engineCylinders: "Number of Cylinders",
+    carValue: "Car Value (comprehensive only)",
+    carValuePlaceholder: "e.g. 120,000",
     driverAge: "Driver Age",
     age25Plus: "25 years and above",
     ageUnder25: "Under 25 years",
-    licenseYears: "Driving License",
+    licenseYears: "License Duration",
     lic3Plus: "3 years or more",
     licLess3: "Less than 3 years",
     brand: "Brand",
-    model: "Model",
-    modelYear: "Year",
     selectBrand: "Select brand",
+    model: "Model",
     selectModel: "Select model",
-    chooseBrandFirst: "Choose brand first",
+    chooseBrandFirst: "Select brand first",
+    modelYear: "Year",
     selectYear: "Select year",
-    customerName: "Customer Name",
-    fullName: "Full name",
-    phone: "Phone Number",
-    whatsapp: "WhatsApp",
-    email: "Email (optional)",
-    emailPlaceholder: "your@email.com",
+    getPrice: "Get Price",
+    yourPrice: "Your Estimated Price",
+    perYear: "/ year",
+    contactForPrice: "Please contact us via WhatsApp for the best offer",
+    whatsappUs: "Contact via WhatsApp",
+    enterVehicleValue: "Enter car value to calculate price",
+    selectAllFields: "Please fill in all required fields",
+    cylinders: "cyl",
+    docsTitle: "Upload Documents",
+    docsSubtitle: "To complete your request, please upload the following documents",
+    drivingLicense: "Driving License",
+    emiratesId: "Emirates ID",
+    carOwnership: "Car Ownership",
+    uploadFile: "Click to upload",
+    fileUploaded: "File uploaded",
+    changeFile: "Change",
+    fullName: "Full Name",
+    fullNamePlaceholder: "Full name",
+    phoneNumber: "Phone Number",
     phonePlaceholder: "05X XXX XXXX",
-    next: "Next",
-    back: "Back",
-    getQuote: "Get Quote",
-    estEyebrow: "Estimated Premium",
-    estPerYear: "/year",
-    estBase: "Best price",
-    estHigh: "Young driver rate",
-    priceNote: "Prices shown are for drivers aged 25+ with a driving license older than 3 years. Other cases are calculated automatically.",
-    callNow: "Call",
-    whatsappUs: "WhatsApp",
-    selectToSee: "Select vehicle, cylinders, driver age & license to see your price.",
-    aboutTitle: "About Us",
-    aboutText: "RAOUF INSURANCE SERVICES is a UAE insurance broker offering competitive prices from multiple insurance companies with fast quotation and professional customer service.",
-    seePrice: "See Your Price",
-    quoteReady: "Your quote is ready!",
+    email: "Email",
+    emailPlaceholder: "your@email.com",
+    submitRequest: "Submit Request",
+    submitting: "Submitting...",
+    submitSuccess: "Your request has been submitted successfully! We will contact you soon.",
+    submitError: "An error occurred. Please try again or contact us via WhatsApp.",
+    backToForm: "Back to form",
+    requiredDocs: "Required Documents (3)",
+    contactInfo: "Contact Information",
     newQuote: "New Quote",
+    aboutTitle: "About Us",
+    aboutText: "RAOUF INSURANCE SERVICES is a licensed insurance broker in the UAE, providing offers from all insurance companies at competitive prices, and helping customers choose the best coverage as quickly as possible.",
+    callNow: "Call",
+    whatsappBottom: "WhatsApp",
+    getQuoteBottom: "Get Quote",
+    rightsReserved: "All rights reserved",
+    fileTooBig: "File is too large (max 5MB)",
   },
-  ar: {
-    brandName: "رؤوف",
-    brandTagline: "خدمات التأمين",
-    heroTitle: "احصل على عرض سعر الآن",
-    step1: "المركبة",
-    step2: "السائق",
-    step3: "الاتصال",
-    step1Title: "تفاصيل المركبة",
-    step2Title: "تفاصيل السيارة",
-    step3Title: "بيانات التواصل",
-    insuranceType: "نوع التأمين",
-    vehicleType: "نوع المركبة",
-    engineCylinders: "الأسطوانات",
-    cyl: "سل",
-    comprehensive: "شامل",
-    thirdParty: "ضد الغير",
-    driverAge: "عمر السائق",
-    age25Plus: "25 سنة فما فوق",
-    ageUnder25: "أقل من 25 سنة",
-    licenseYears: "رخصة القيادة",
-    lic3Plus: "3 سنوات أو أكثر",
-    licLess3: "أقل من 3 سنوات",
-    brand: "العلامة",
-    model: "الموديل",
-    modelYear: "السنة",
-    selectBrand: "اختر العلامة",
-    selectModel: "اختر الموديل",
-    chooseBrandFirst: "اختر العلامة أولاً",
-    selectYear: "اختر السنة",
-    customerName: "اسم العميل",
-    fullName: "الاسم الكامل",
-    phone: "رقم الهاتف",
-    whatsapp: "واتساب",
-    email: "البريد (اختياري)",
-    emailPlaceholder: "your@email.com",
-    phonePlaceholder: "05X XXX XXXX",
-    next: "التالي",
-    back: "السابق",
-    getQuote: "احصل على عرض السعر",
-    estEyebrow: "القسط المقدر",
-    estPerYear: "/سنوياً",
-    estBase: "أفضل سعر",
-    estHigh: "سعر سائق شاب",
-    priceNote: "الأسعار المعروضة للسائقين فوق 25 عاماً برخصة قيادة أقدم من 3 سنوات. الحالات الأخرى تُحسب تلقائياً.",
-    callNow: "اتصل",
-    whatsappUs: "واتساب",
-    selectToSee: "اختر نوع المركبة والأسطوانات وعمر السائق والرخصة لرؤية السعر.",
-    aboutTitle: "من نحن",
-    aboutText: "رؤوف لخدمات التأمين وسيط تأمين معتمد في الإمارات يقدم أسعاراً تنافسية من شركات تأمين متعددة مع عروض أسعار سريعة وخدمة عملاء احترافية.",
-    seePrice: "شاهد سعرك",
-    quoteReady: "عرض السعر جاهز!",
-    newQuote: "عرض جديد",
-  },
-};
-
-export const VEHICLE_TYPE_AR: Record<VehicleType, string> = {
-  Sedan: "سيدان",
-  SUV: "دفع رباعي",
-  Coupe: "كوبيه",
-};
-
-export const INSURANCE_TYPE_AR: Record<InsuranceType, string> = {
-  Comprehensive: "شامل",
-  "Third Party": "ضد الغير",
 };

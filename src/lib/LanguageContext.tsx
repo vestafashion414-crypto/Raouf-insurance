@@ -5,7 +5,6 @@ interface LangCtx {
   lang: Lang;
   dir: "ltr" | "rtl";
   toggle: () => void;
-  setLang: (l: Lang) => void;
   t: (key: string) => string;
 }
 
@@ -14,7 +13,7 @@ const Ctx = createContext<LangCtx | null>(null);
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     const saved = typeof localStorage !== "undefined" ? localStorage.getItem("raouf-lang") : null;
-    return saved === "ar" || saved === "en" ? saved : "en";
+    return saved === "ar" || saved === "en" ? saved : "ar";
   });
 
   const dir = lang === "ar" ? "rtl" : "ltr";
@@ -26,8 +25,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("raouf-lang", lang);
   }, [lang, dir]);
 
-  const setLang = (l: Lang) => setLangState(l);
-  const toggle = () => setLangState((p) => (p === "en" ? "ar" : "en"));
+  const toggle = () => setLangState((p) => (p === "ar" ? "en" : "ar"));
 
   const t = (key: string): string => {
     const val = T[lang][key];
@@ -35,7 +33,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <Ctx.Provider value={{ lang, dir, toggle, setLang, t }}>{children}</Ctx.Provider>
+    <Ctx.Provider value={{ lang, dir, toggle, t }}>{children}</Ctx.Provider>
   );
 }
 
