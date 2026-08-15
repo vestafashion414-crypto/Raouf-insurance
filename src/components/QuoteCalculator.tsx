@@ -5,6 +5,8 @@ import {
   INSURANCE_TYPE_AR,
   INITIAL_FORM,
   VEHICLE_TYPE_AR,
+  VEHICLE_VALUE_AR,
+  VEHICLE_VALUE_EN,
   YEARS,
   calculatePremium,
   fmtAed,
@@ -13,8 +15,10 @@ import {
   type InsuranceType,
   type Lang,
   type LicenseYears,
+  type PremiumResult,
   type QuoteFormData,
   type VehicleType,
+  type VehicleValue,
 } from "../data";
 import { useLang } from "../lib/LanguageContext";
 import { ShieldCheck, Phone, Building2, MessageCircle, Languages, Car, CircleUser as UserCircle, Contact as ContactIcon, ChevronRight, ChevronLeft, Check, Sparkles, Info } from "lucide-react";
@@ -28,6 +32,7 @@ const VEHICLE_TYPES: { value: VehicleType; img: string }[] = [
 const ENGINE_OPTIONS: EngineCylinders[] = [4, 6, 8];
 const AGE_OPTIONS: DriverAge[] = ["25+", "Under 25"];
 const LICENSE_OPTIONS: LicenseYears[] = ["3+", "Less than 3"];
+const VALUE_OPTIONS: VehicleValue[] = ["upto60k", "60k-100k", "100k+"];
 
 export default function QuoteCalculator() {
   const { t, lang, toggle } = useLang();
@@ -44,8 +49,18 @@ export default function QuoteCalculator() {
 
   const insLabel = (v: InsuranceType) => (lang === "ar" ? INSURANCE_TYPE_AR[v] : v);
   const vehLabel = (v: VehicleType) => (lang === "ar" ? VEHICLE_TYPE_AR[v] : v);
+  const valLabel = (v: VehicleValue) => (lang === "ar" ? VEHICLE_VALUE_AR[v] : VEHICLE_VALUE_EN[v]);
 
-  const step1Valid = !!(form.insuranceType && form.vehicleType && form.engineCylinders && form.driverAge && form.licenseYears);
+  const needsValue = form.insuranceType === "Comprehensive";
+  const needsCylinders = form.insuranceType === "Third Party";
+  const step1Valid = !!(
+    form.insuranceType &&
+    form.vehicleType &&
+    form.driverAge &&
+    form.licenseYears &&
+    (needsCylinders ? form.engineCylinders : true) &&
+    (needsValue ? form.vehicleValue : true)
+  );
   const step2Valid = !!(form.brand && form.model && form.modelYear);
   const step3Valid = !!(form.customerName && form.phone);
 
@@ -125,7 +140,7 @@ export default function QuoteCalculator() {
 
           {/* Step content */}
           <div key={step} className={animClass}>
-            {step === 1 && <Step1 form={form} set={set} insLabel={insLabel} vehLabel={vehLabel} />}
+            {step === 1 && <Step1 form={form} set={set} insLabel={insLabel} vehLabel={vehLabel} valLabel={valLabel} />}
             {step === 2 && <Step2 form={form} set={set} brands={brands} models={models} />}
             {step === 3 && <Step3 form={form} set={set} />}
           </div>
@@ -194,12 +209,16 @@ export default function QuoteCalculator() {
     </section>
   );
 
-  function whatsappMsg(f: QuoteFormData, est: { amount: number; tier: string } | null, l: Lang): string {
+  function whatsappMsg(f: QuoteFormData, est: PremiumResult, l: Lang): string {
     if (!est) return "";
     const age = f.driverAge === "25+" ? (l === "ar" ? "25 سنة فما فوق" : "25 years and above") : (l === "ar" ? "أقل من 25 سنة" : "Under 25 years");
     const lic = f.licenseYears === "3+" ? (l === "ar" ? "3 سنوات أو أكثر" : "3 years or more") : (l === "ar" ? "أقل من 3 سنوات" : "Less than 3 years");
     const vtype = l === "ar" ? VEHICLE_TYPE_AR[f.vehicleType as VehicleType] : f.vehicleType;
     const itype = l === "ar" ? INSURANCE_TYPE_AR[f.insuranceType as InsuranceType] : f.insuranceType;
+    const vval = f.vehicleValue ? (l === "ar" ? VEHICLE_VALUE_AR[f.vehicleValue] : VEHICLE_VALUE_EN[f.vehicleValue]) : "-";
+    const premiumLine = "customQuote" in est
+      ? (l === "ar" ? "القسط المقدر: عرض سعر مخصص" : "Estimated Premium: Custom quotation")
+      : (l === "ar" ? `القسط المقدر: ${fmtAed(est.amount, "ar")} / سنوياً` : `Estimated Premium: ${fmtAed(est.amount, "en")} / year`);
     if (l === "ar") {
       return [
         "طلب عرض سعر تأمين:",
@@ -210,10 +229,11 @@ export default function QuoteCalculator() {
         `الأسطوانات: ${f.engineCylinders ?? "-"}`,
         `عمر السائق: ${age}`,
         `رخصة القيادة: ${lic}`,
+        `قيمة المركبة: ${vval}`,
         `العلامة: ${f.brand || "-"}`,
         `الموديل: ${f.model || "-"}`,
         `سنة الموديل: ${f.modelYear || "-"}`,
-        `القسط المقدر: ${fmtAed(est.amount, "ar")} / سنوياً`,
+        premiumLine,
       ].join("\n");
     }
     return [
@@ -225,10 +245,11 @@ export default function QuoteCalculator() {
       `Cylinders: ${f.engineCylinders ?? "-"}`,
       `Driver Age: ${age}`,
       `Driving License: ${lic}`,
+      `Vehicle Value: ${vval}`,
       `Vehicle Brand: ${f.brand || "-"}`,
       `Vehicle Model: ${f.model || "-"}`,
       `Model Year: ${f.modelYear || "-"}`,
-      `Estimated Premium: ${fmtAed(est.amount, "en")} / year`,
+      premiumLine,
     ].join("\n");
   }
 }
@@ -239,11 +260,13 @@ function Step1({
   set,
   insLabel,
   vehLabel,
+  valLabel,
 }: {
   form: QuoteFormData;
   set: <K extends keyof QuoteFormData>(key: K, value: QuoteFormData[K]) => void;
   insLabel: (v: InsuranceType) => string;
   vehLabel: (v: VehicleType) => string;
+  valLabel: (v: VehicleValue) => string;
 }) {
   const { t } = useLang();
   return (
@@ -285,16 +308,30 @@ function Step1({
         </div>
       </Field>
 
-      <Field label={t("engineCylinders")}>
-        <div className="grid grid-cols-3 gap-2.5">
-          {ENGINE_OPTIONS.map((c) => (
-            <button key={c} onClick={() => set("engineCylinders", c)} className={`chip ${form.engineCylinders === c ? "chip-active" : "chip-idle"}`}>
-              <span className="font-display text-lg font-semibold">{c}</span>
-              <span className="ms-1 text-xs">{t("cyl")}</span>
-            </button>
-          ))}
-        </div>
-      </Field>
+      {form.insuranceType === "Third Party" && (
+        <Field label={t("engineCylinders")}>
+          <div className="grid grid-cols-3 gap-2.5">
+            {ENGINE_OPTIONS.map((c) => (
+              <button key={c} onClick={() => set("engineCylinders", c)} className={`chip ${form.engineCylinders === c ? "chip-active" : "chip-idle"}`}>
+                <span className="font-display text-lg font-semibold">{c}</span>
+                <span className="ms-1 text-xs">{t("cyl")}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
+
+      {form.insuranceType === "Comprehensive" && (
+        <Field label={t("vehicleValue")}>
+          <div className="space-y-2.5">
+            {VALUE_OPTIONS.map((v) => (
+              <button key={v} onClick={() => set("vehicleValue", v)} className={`chip text-start ${form.vehicleValue === v ? "chip-active" : "chip-idle"}`}>
+                {valLabel(v)}
+              </button>
+            ))}
+          </div>
+        </Field>
+      )}
 
       <Field label={t("driverAge")}>
         <div className="grid grid-cols-2 gap-2.5">
@@ -400,7 +437,7 @@ function Step3({
 }
 
 /* ---------- Price card (always visible, large gold card) ---------- */
-function PriceCard({ estimate }: { estimate: { amount: number; tier: string } | null }) {
+function PriceCard({ estimate }: { estimate: PremiumResult }) {
   const { t, lang } = useLang();
 
   if (!estimate) {
@@ -408,6 +445,24 @@ function PriceCard({ estimate }: { estimate: { amount: number; tier: string } | 
       <div className="mt-5 rounded-2xl border border-gold-500/15 bg-ink-900/60 p-5 text-center">
         <Sparkles className="mx-auto mb-2 h-5 w-5 text-gold-500/40" />
         <p className="text-sm text-gray-500">{t("selectToSee")}</p>
+      </div>
+    );
+  }
+
+  if ("customQuote" in estimate) {
+    return (
+      <div className="mt-5 animate-scale-in rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/15 via-ink-850 to-ink-900 p-5 text-center shadow-[0_10px_40px_-10px_rgba(16,185,129,0.4)]">
+        <Info className="mx-auto mb-3 h-6 w-6 text-emerald-400" />
+        <p className="text-sm font-medium leading-relaxed text-emerald-100">{t("customQuote")}</p>
+        <a
+          href={`https://wa.me/${CONTACT.whatsapp}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-4 text-base font-bold text-white shadow-lg shadow-emerald-500/30 transition-all hover:bg-emerald-400 hover:shadow-emerald-500/50"
+        >
+          <MessageCircle className="h-6 w-6" />
+          {t("customQuoteBtn")}
+        </a>
       </div>
     );
   }

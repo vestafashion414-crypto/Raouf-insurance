@@ -4,7 +4,9 @@ export type VehicleType = "Sedan" | "SUV" | "Coupe";
 export type EngineCylinders = 4 | 6 | 8;
 export type DriverAge = "25+" | "Under 25";
 export type LicenseYears = "3+" | "Less than 3";
+export type VehicleValue = "upto60k" | "60k-100k" | "100k+";
 export type QuoteTier = "base" | "high";
+export type PremiumResult = { amount: number; tier: QuoteTier } | { customQuote: true } | null;
 
 export interface QuoteFormData {
   insuranceType: InsuranceType | "";
@@ -12,6 +14,7 @@ export interface QuoteFormData {
   engineCylinders: EngineCylinders | null;
   driverAge: DriverAge | "";
   licenseYears: LicenseYears | "";
+  vehicleValue: VehicleValue | "";
   brand: string;
   model: string;
   modelYear: string;
@@ -27,6 +30,7 @@ export const INITIAL_FORM: QuoteFormData = {
   engineCylinders: null,
   driverAge: "",
   licenseYears: "",
+  vehicleValue: "",
   brand: "",
   model: "",
   modelYear: "",
@@ -77,11 +81,18 @@ const PRICING_BASE: Record<VehicleType, Record<EngineCylinders, number>> = {
   Coupe: { 4: 800, 6: 900, 8: 1000 },
 };
 
-// High tier: under 25 OR license less than 3 years
+// High tier: under 25 OR license less than 3 years (Third Party only)
 const PRICING_HIGH: Record<VehicleType, Record<EngineCylinders, number>> = {
   Sedan: { 4: 1250, 6: 1350, 8: 1500 },
   SUV: { 4: 1550, 6: 1850, 8: 1950 },
   Coupe: { 4: 1150, 6: 1350, 8: 1500 },
+};
+
+// Comprehensive base tier (age 25+ AND license 3+): value-based, null = custom quote
+const COMPREHENSIVE_BASE: Record<VehicleType, Record<VehicleValue, number | null>> = {
+  Sedan: { "upto60k": 1350, "60k-100k": 1400, "100k+": null },
+  SUV: { "upto60k": 1750, "60k-100k": null, "100k+": null },
+  Coupe: { "upto60k": null, "60k-100k": null, "100k+": null },
 };
 
 export function getTier(age: DriverAge | "", lic: LicenseYears | ""): QuoteTier | null {
@@ -90,13 +101,23 @@ export function getTier(age: DriverAge | "", lic: LicenseYears | ""): QuoteTier 
   return "base";
 }
 
-export function calculatePremium(form: Pick<QuoteFormData, "vehicleType" | "engineCylinders" | "driverAge" | "licenseYears">): { amount: number; tier: QuoteTier } | null {
-  if (!form.vehicleType || !form.engineCylinders) return null;
+export function calculatePremium(form: Pick<QuoteFormData, "insuranceType" | "vehicleType" | "engineCylinders" | "driverAge" | "licenseYears" | "vehicleValue">): PremiumResult {
+  if (!form.insuranceType || !form.vehicleType) return null;
   const tier = getTier(form.driverAge, form.licenseYears);
   if (!tier) return null;
-  const table = tier === "base" ? PRICING_BASE : PRICING_HIGH;
-  const amount = table[form.vehicleType][form.engineCylinders];
-  if (!amount) return null;
+
+  if (form.insuranceType === "Third Party") {
+    if (!form.engineCylinders) return null;
+    const table = tier === "base" ? PRICING_BASE : PRICING_HIGH;
+    const amount = table[form.vehicleType][form.engineCylinders];
+    if (!amount) return null;
+    return { amount, tier };
+  }
+
+  if (!form.vehicleValue) return null;
+  if (tier === "high") return { customQuote: true };
+  const amount = COMPREHENSIVE_BASE[form.vehicleType][form.vehicleValue];
+  if (amount == null) return { customQuote: true };
   return { amount, tier };
 }
 
@@ -131,6 +152,10 @@ export const T: Record<Lang, Record<string, string>> = {
     licenseYears: "Driving License",
     lic3Plus: "3 years or more",
     licLess3: "Less than 3 years",
+    vehicleValue: "Vehicle Value (AED)",
+    valUpto60k: "Up to 60,000 AED",
+    val60to100k: "60,001 - 100,000 AED",
+    val100kPlus: "More than 100,000 AED",
     brand: "Brand",
     model: "Model",
     modelYear: "Year",
@@ -152,10 +177,12 @@ export const T: Record<Lang, Record<string, string>> = {
     estPerYear: "/year",
     estBase: "Best price",
     estHigh: "Young driver rate",
+    customQuote: "Please contact us on WhatsApp for a custom quotation.",
+    customQuoteBtn: "Contact us on WhatsApp",
     priceNote: "Prices shown are for drivers aged 25+ with a driving license older than 3 years. Other cases are calculated automatically.",
     callNow: "Call",
     whatsappUs: "WhatsApp",
-    selectToSee: "Select vehicle, cylinders, driver age & license to see your price.",
+    selectToSee: "Select insurance type, vehicle & driver details to see your price.",
     aboutTitle: "About Us",
     aboutText: "RAOUF INSURANCE SERVICES is a UAE insurance broker offering competitive prices from multiple insurance companies with fast quotation and professional customer service.",
     seePrice: "See Your Price",
@@ -184,6 +211,10 @@ export const T: Record<Lang, Record<string, string>> = {
     licenseYears: "رخصة القيادة",
     lic3Plus: "3 سنوات أو أكثر",
     licLess3: "أقل من 3 سنوات",
+    vehicleValue: "قيمة المركبة (درهم)",
+    valUpto60k: "حتى 60,000 درهم",
+    val60to100k: "60,001 - 100,000 درهم",
+    val100kPlus: "أكثر من 100,000 درهم",
     brand: "العلامة",
     model: "الموديل",
     modelYear: "السنة",
@@ -205,10 +236,12 @@ export const T: Record<Lang, Record<string, string>> = {
     estPerYear: "/سنوياً",
     estBase: "أفضل سعر",
     estHigh: "سعر سائق شاب",
+    customQuote: "يرجى التواصل معنا عبر واتساب للحصول على عرض سعر مخصص.",
+    customQuoteBtn: "تواصل معنا عبر واتساب",
     priceNote: "الأسعار المعروضة للسائقين فوق 25 عاماً برخصة قيادة أقدم من 3 سنوات. الحالات الأخرى تُحسب تلقائياً.",
     callNow: "اتصل",
     whatsappUs: "واتساب",
-    selectToSee: "اختر نوع المركبة والأسطوانات وعمر السائق والرخصة لرؤية السعر.",
+    selectToSee: "اختر نوع التأمين والمركبة وبيانات السائق لرؤية السعر.",
     aboutTitle: "من نحن",
     aboutText: "رؤوف لخدمات التأمين وسيط تأمين معتمد في الإمارات يقدم أسعاراً تنافسية من شركات تأمين متعددة مع عروض أسعار سريعة وخدمة عملاء احترافية.",
     seePrice: "شاهد سعرك",
@@ -226,4 +259,16 @@ export const VEHICLE_TYPE_AR: Record<VehicleType, string> = {
 export const INSURANCE_TYPE_AR: Record<InsuranceType, string> = {
   Comprehensive: "شامل",
   "Third Party": "ضد الغير",
+};
+
+export const VEHICLE_VALUE_EN: Record<VehicleValue, string> = {
+  "upto60k": "Up to 60,000 AED",
+  "60k-100k": "60,001 - 100,000 AED",
+  "100k+": "More than 100,000 AED",
+};
+
+export const VEHICLE_VALUE_AR: Record<VehicleValue, string> = {
+  "upto60k": "حتى 60,000 درهم",
+  "60k-100k": "60,001 - 100,000 درهم",
+  "100k+": "أكثر من 100,000 درهم",
 };
