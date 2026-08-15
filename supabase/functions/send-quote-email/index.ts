@@ -11,6 +11,15 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "onboarding@resend.dev";
 const TO_EMAIL = "raoofbanna0@gmail.com";
 
+interface DocInfo {
+  label: string;
+  path: string;
+  signedUrl: string;
+  filename: string;
+  contentType: string;
+  content: string;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
@@ -21,6 +30,14 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+    if (!supabaseUrl || !serviceRoleKey) {
+      return errorResponse(500, "Server is missing Supabase credentials");
+    }
+
+    if (!RESEND_API_KEY) {
+      return errorResponse(500, "Email service is not configured (RESEND_API_KEY missing). Please contact the site administrator.");
+    }
+
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false },
     });
@@ -28,19 +45,40 @@ Deno.serve(async (req: Request) => {
     const docFields = [
       { key: "driving_license_path", label: "Driving License" },
       { key: "emirates_id_path", label: "Emirates ID" },
-      { key: "car_ownership_path", label: "Car Ownership" },
+      { key: "car_ownership_path", label: "Vehicle Registration" },
     ];
 
-    const docLinks: string[] = [];
+    const attachments: DocInfo[] = [];
     for (const doc of docFields) {
       const path = record[doc.key];
       if (path) {
-        const { data } = await supabase.storage
+        const { data: urlData } = await supabase.storage
           .from("quote-documents")
           .createSignedUrl(path, 86400);
-        if (data?.signedUrl) {
-          docLinks.push(`${doc.label}: ${data.signedUrl}`);
+
+        if (!urlData?.signedUrl) {
+          return errorResponse(500, `Failed to generate download link for ${doc.label}`);
         }
+
+        const fileRes = await fetch(urlData.signedUrl);
+        if (!fileRes.ok) {
+          return errorResponse(500, `Failed to download ${doc.label} from storage`);
+        }
+
+        const fileBuffer = await fileRes.arrayBuffer();
+        const base64Content = btoa(String.fromCharCode(...new Uint8Array(fileBuffer)));
+
+        const ext = path.split(".").pop() ?? "bin";
+        const contentType = fileRes.headers.get("content-type") ?? "application/octet-stream";
+
+        attachments.push({
+          label: doc.label,
+          path,
+          signedUrl: urlData.signedUrl,
+          filename: `${doc.label.replace(/\s+/g, "_")}.${ext}`,
+          contentType,
+          content: base64Content,
+        });
       }
     }
 
@@ -49,6 +87,10 @@ Deno.serve(async (req: Request) => {
       : record.estimated_price
         ? `AED ${record.estimated_price}/year`
         : "N/A";
+
+    const docListHtml = attachments.length > 0
+      ? attachments.map((a) => `<li><a href="${a.signedUrl}">${a.label}</a></li>`).join("")
+      : "<li>No documents uploaded</li>";
 
     const emailHtml = `
       <h2>New Insurance Quote Request</h2>
@@ -66,45 +108,56 @@ Deno.serve(async (req: Request) => {
         <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Estimated Price</td><td style="padding:8px;border:1px solid #ddd;">${priceText}</td></tr>
       </table>
       <h3>Documents</h3>
-      <ul>
-        ${docLinks.map((link) => `<li><a href="${link.split(": ").slice(1).join(": ")}">${link.split(": ")[0]}</a></li>`).join("")}
-      </ul>
+      <ul>${docListHtml}</ul>
       <p>Submitted at: ${new Date(record.created_at).toLocaleString()}</p>
     `;
 
-    if (RESEND_API_KEY) {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: FROM_EMAIL,
-          to: TO_EMAIL,
-          subject: `New Quote Request - ${record.customer_name}`,
-          html: emailHtml,
-        }),
-      });
+    const emailBody: Record<string, unknown> = {
+      from: FROM_EMAIL,
+      to: TO_EMAIL,
+      subject: `New Quote Request - ${record.customer_name}`,
+      html: emailHtml,
+    };
 
-      if (!res.ok) {
-        const errText = await res.text();
-        console.error("Resend API error:", errText);
-      }
-    } else {
-      console.log("No RESEND_API_KEY configured. Email would be sent to:", TO_EMAIL);
-      console.log("Email content:", emailHtml);
+    if (attachments.length > 0) {
+      emailBody.attachments = attachments.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        type: a.contentType,
+      }));
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify(emailBody),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Resend API error:", errText);
+      return errorResponse(500, `Email service error: ${errText}`);
+    }
+
+    const emailResult = await res.json();
+    console.log("Email sent successfully:", emailResult.id);
+
+    return new Response(JSON.stringify({ success: true, emailId: emailResult.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("Edge function error:", err);
+    return errorResponse(500, `Failed to send email: ${err.message}`);
+  }
+
+  function errorResponse(status: number, message: string) {
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: message }),
       {
-        status: 500,
+        status,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );

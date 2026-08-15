@@ -90,43 +90,44 @@ export default function DocumentUpload({ form, price, onNewQuote }: Props) {
 
       if (insertError) throw insertError;
 
-      try {
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-quote-email`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      const emailRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-quote-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          record: {
+            customer_name: name,
+            phone,
+            email: email || null,
+            insurance_type: form.insuranceType,
+            brand: form.brand,
+            model: form.model,
+            model_year: form.modelYear,
+            vehicle_type: form.vehicleType,
+            engine_cylinders: form.engineCylinders,
+            car_value: form.carValue ? parseFloat(form.carValue) : null,
+            driver_age: form.driverAge,
+            license_years: form.licenseYears,
+            estimated_price: price.needsContact ? null : price.amount,
+            needs_contact: price.needsContact,
+            driving_license_path: uploaded[0]?.path ?? null,
+            emirates_id_path: uploaded[1]?.path ?? null,
+            car_ownership_path: uploaded[2]?.path ?? null,
+            created_at: new Date().toISOString(),
           },
-          body: JSON.stringify({
-            record: {
-              customer_name: name,
-              phone,
-              email: email || null,
-              insurance_type: form.insuranceType,
-              brand: form.brand,
-              model: form.model,
-              model_year: form.modelYear,
-              vehicle_type: form.vehicleType,
-              engine_cylinders: form.engineCylinders,
-              car_value: form.carValue ? parseFloat(form.carValue) : null,
-              driver_age: form.driverAge,
-              license_years: form.licenseYears,
-              estimated_price: price.needsContact ? null : price.amount,
-              needs_contact: price.needsContact,
-              driving_license_path: uploaded[0]?.path ?? null,
-              emirates_id_path: uploaded[1]?.path ?? null,
-              car_ownership_path: uploaded[2]?.path ?? null,
-              created_at: new Date().toISOString(),
-            },
-          }),
-        });
-      } catch {
-        // Email failure shouldn't block success
+        }),
+      });
+
+      if (!emailRes.ok) {
+        const errData = await emailRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Email service returned status ${emailRes.status}`);
       }
 
       setSuccess(true);
     } catch (err) {
-      setError(t("submitError"));
+      setError(err instanceof Error ? err.message : t("submitError"));
     } finally {
       setSubmitting(false);
     }
